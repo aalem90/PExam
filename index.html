@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ujian Online</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="app.css">
+<style>
+body.exam{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+body.exam textarea{user-select:text;-webkit-user-select:text}
+.top{position:sticky;top:0;z-index:20;background:var(--navy);color:#fff;padding:8px 12px}
+.top .in{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.top .mk{font-weight:700;font-size:14px;line-height:1.2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.timer{font:700 22px/1 ui-monospace,Menlo,Consolas,monospace;background:#fff;color:var(--navy);padding:6px 10px;border-radius:8px;font-variant-numeric:tabular-nums}
+.timer.low{background:var(--red);color:#fff}
+.top .btn{background:#fff;color:var(--navy);border-color:#fff;padding:7px 10px;font-size:13px}
+.nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px}
+.nav button{font:600 14px/1 inherit;height:38px;border:1px solid #bdb8ac;background:#fff;border-radius:8px;cursor:pointer;color:var(--ink)}
+.nav button.done{background:var(--green-bg);border-color:#9fd0b3;color:var(--green)}.nav button.cur{outline:3px solid var(--amber);outline-offset:1px}.nav button.es{border-style:dashed}
+.q-head{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.q-text{font-size:16.5px;line-height:1.6;margin-bottom:14px;position:relative}
+.opt{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;font:inherit;color:inherit;background:#fff;border:1.5px solid #cfcabd;border-radius:10px;padding:12px;margin:8px 0;cursor:pointer}
+.opt .l{flex:0 0 30px;height:30px;border-radius:50%;border:1.5px solid #9a9689;display:grid;place-items:center;font-weight:700}
+.opt.sel{border-color:var(--navy);background:#eef0f9}.opt.sel .l{background:var(--navy);color:#fff;border-color:var(--navy)}
+.opt:disabled{cursor:not-allowed;opacity:.7}
+textarea.essay{min-height:210px;font-size:16px;line-height:1.55}
+/* jebakan AI: tak terlihat mata, terbaca mesin */
+.trap-h{position:absolute;left:0;top:0;width:1px;height:1px;overflow:hidden;font-size:1px;line-height:1px;color:transparent;white-space:nowrap}
+.trap-s{display:block;font-size:9px;line-height:1.2;color:rgba(31,42,92,.075);margin-top:2px;letter-spacing:.01em}
+#shade{position:fixed;inset:0;z-index:60;background:rgba(22,32,63,.94);color:#fff;display:none;place-items:center;text-align:center;padding:24px}
+#shade.on{display:grid}#shade h2{font-size:22px}#shade p{max-width:440px;margin:8px auto}
+.tipe-big{display:flex;gap:14px;align-items:center;background:var(--amber-bg);border:2px solid var(--amber);border-radius:12px;padding:12px 14px;margin-bottom:14px}
+.tipe-big .tn{font:800 40px/1 ui-monospace,Menlo,monospace;color:var(--navy);background:#fff;border:2px solid var(--navy);border-radius:10px;padding:6px 14px}
+.pq{border-top:1px solid var(--line);padding:16px 0}.pq:first-of-type{border-top:0}.popt{display:flex;gap:10px;padding:5px 0}.popt .l{flex:0 0 26px;height:26px;border-radius:50%;border:1.5px solid #9a9689;display:grid;place-items:center;font-weight:700;font-size:13px}
+.where{font-size:13px;color:#17467f;background:var(--blue-bg);display:inline-block;padding:3px 10px;border-radius:99px;margin-top:4px}
+body.paper #bPrev,body.paper #bNext{display:none}
+.rules li{margin:4px 0}.net{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--amber);color:#fff;display:none}.net.on{display:inline-block}
+</style>
+</head>
+<body>
+<!-- ============ LOGIN ============ -->
+<main id="vLogin" class="wrap narrow" style="display:none">
+  <div style="text-align:center;margin:18px 0 14px"><div class="mut sm" id="kampus"></div><h1>Ujian Online</h1></div>
+  <div class="card">
+    <label for="fMk">Mata kuliah</label>
+    <select id="fMk"><option value="">memuat…</option></select>
+    <div class="sm mut" id="mkInfo" style="margin-top:4px"></div>
+    <label for="fNim">NIM</label>
+    <input type="text" id="fNim" inputmode="numeric" autocomplete="off" placeholder="mis. 27250001">
+    <label for="fPw">Password ujian (4 karakter, dari dosen)</label>
+    <input type="text" id="fPw" maxlength="4" autocomplete="off" autocapitalize="characters" style="text-transform:uppercase;letter-spacing:.3em;font:700 20px ui-monospace,Menlo,monospace" placeholder="····">
+    <div class="msg warn sm" style="margin-top:14px">
+      <b>Tata tertib</b>
+      <ul class="rules" style="margin:6px 0 0;padding-left:18px">
+        <li>Waktu berjalan sejak tombol <b>Mulai</b> ditekan dan tidak bisa dijeda.</li>
+        <li>Pindah tab/aplikasi, screenshot, salin–tempel, dan menutup halaman <b>tercatat dan dilaporkan ke dosen</b>.</li>
+        <li>Tulis jawaban sesuai petunjuk dosen (di lembar jawaban kertas atau di layar). Saat waktu habis, ujian ditutup otomatis.</li>
+        <li>Matikan notifikasi yang bisa menutupi layar; gunakan satu perangkat saja.</li>
+      </ul>
+    </div>
+    <label class="chk"><input type="checkbox" id="fAgree"> Saya mengerjakan sendiri, tanpa bantuan orang lain maupun AI, dan menyetujui tata tertib di atas.</label>
+    <div id="loginMsg"></div>
+    <button class="btn big" id="bStart">Mulai ujian</button>
+  </div>
+  <p class="sm mut" style="text-align:center">Kendala login? Angkat tangan / hubungi pengawas.</p>
+</main>
+
+<!-- ============ UJIAN ============ -->
+<div id="vExam" style="display:none">
+  <div class="top"><div class="in">
+    <div class="grow" style="min-width:0"><div class="mk" id="xMk"></div><div class="sm" style="opacity:.8" id="xWho"></div></div>
+    <span class="net" id="xNet">offline</span>
+    <button class="btn" id="bFs" style="display:none">Formula</button>
+    <div class="timer" id="xTimer" aria-label="Sisa waktu">--:--</div>
+  </div></div>
+  <main class="wrap" style="max-width:860px">
+    <div class="card" style="padding:12px">
+      <div class="row sm" style="margin-bottom:8px"><b id="xProg"></b><span class="badge b-red" id="xViol" style="display:none"></span><span class="right mut" id="xSaved"></span></div>
+      <div class="nav" id="xNav"></div>
+    </div>
+    <div class="card" id="xQ"></div>
+    <div class="row">
+      <button class="btn sec" id="bPrev">← Sebelumnya</button>
+      <button class="btn sec" id="bNext">Berikutnya →</button>
+      <button class="btn ok right" id="bSubmit">Kumpulkan</button>
+    </div>
+  </main>
+</div>
+
+<!-- ============ SELESAI ============ -->
+<main id="vDone" class="wrap narrow" style="display:none"><div class="card" style="text-align:center;margin-top:40px">
+  <h1 id="dTitle">Jawaban terkumpul</h1><p id="dText" class="mut"></p><p class="sm mut">Anda boleh menutup halaman ini.</p>
+</div></main>
+
+<div id="shade"><div><h2 id="shTitle"></h2><p id="shText"></p><button class="btn" id="shBtn" style="background:#fff;color:var(--navy);border-color:#fff">Kembali ke ujian</button></div></div>
+<div class="modal" id="mFs"><div class="box"><div class="head"><h2 class="grow">Formula Sheet</h2><button class="btn sec" onclick="$('#mFs').classList.remove('on')">Tutup</button></div><div id="fsBody" class="mut">memuat…</div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script>
+const X = { token: null, soal: [], ans: {}, cur: 0, dl: 0, off: 0, status: '', dirty: false, viol: 0, maks: 0, done: false, lastHide: 0 };
+const show = v => ['vLogin', 'vExam', 'vDone'].forEach(id => $('#' + id).style.display = id === v ? '' : 'none');
+const TK = 'ujian_token', bk = () => 'ujian_ans_' + X.token;
+
+/* ---------- login ---------- */
+async function initLogin(msg) {
+  document.body.classList.remove('exam'); show('vLogin'); $('#kampus').textContent = (window.CONFIG && CONFIG.KAMPUS) || '';
+  $('#loginMsg').innerHTML = msg ? '<div class="msg err">' + esc(msg) + '</div>' : '';
+  try {
+    const cs = await api('getCourses'); X.courses = cs;
+    $('#fMk').innerHTML = cs.length ? '<option value="">— pilih mata kuliah —</option>' + cs.map(c => `<option value="${esc(c.id)}">${esc(c.nama)}</option>`).join('') : '<option value="">Belum ada ujian yang dibuka</option>';
+    if (cs.length === 1) { $('#fMk').value = cs[0].id; mkInfo(); }
+  } catch (e) { $('#loginMsg').innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; $('#fMk').innerHTML = '<option value="">gagal memuat</option>'; }
+}
+function mkInfo() { const c = (X.courses || []).find(c => c.id === $('#fMk').value); $('#mkInfo').textContent = c ? 'Durasi ' + c.durasi + ' menit' + (c.terbuka ? '' : ' • di luar jadwal ujian') : ''; }
+$('#fMk').onchange = mkInfo;
+$('#bStart').onclick = async () => {
+  const mk = $('#fMk').value, nim = $('#fNim').value.trim(), pw = $('#fPw').value.trim(), m = $('#loginMsg');
+  if (!mk || !nim || pw.length < 4) return m.innerHTML = '<div class="msg err">Lengkapi mata kuliah, NIM, dan password.</div>';
+  if (!$('#fAgree').checked) return m.innerHTML = '<div class="msg err">Centang pernyataan persetujuan terlebih dahulu.</div>';
+  $('#bStart').disabled = true; m.innerHTML = '<div class="msg info">Menyiapkan soal…</div>';
+  try { const r = await api('studentLogin', mk, nim, pw, deviceId(), navigator.userAgent); localStorage.setItem(TK, r.token); await startExam(r.token); }
+  catch (e) { m.innerHTML = '<div class="msg err">' + esc(e.message) + '</div>'; }
+  $('#bStart').disabled = false;
+};
+
+/* ---------- ujian ---------- */
+async function startExam(token) {
+  X.token = token; const d = await api('getExam', token);
+  if (d.status === 'SELESAI' || d.status === 'WAKTU_HABIS') return finish(d.status);
+  Object.assign(X, { soal: d.soal, dl: d.dl, off: d.now - Date.now(), status: d.status, viol: d.viol, maks: d.maks, trapMode: d.trapMode, done: false, paper: d.mode === 'KERTAS', tipe: d.tipe });
+  document.body.classList.toggle('paper', X.paper); $('#bSubmit').textContent = X.paper ? 'Selesai' : 'Kumpulkan';
+  let srv = {}; try { srv = JSON.parse(d.jawaban || '{}'); } catch (e) { }
+  let loc = {}; try { loc = JSON.parse(localStorage.getItem(bk()) || '{}'); } catch (e) { }
+  X.ans = Object.assign({}, srv, loc); X.dirty = JSON.stringify(X.ans) !== JSON.stringify(srv);
+  $('#xMk').textContent = d.mk; $('#xWho').textContent = d.nama + ' • ' + d.nim;
+  document.body.classList.add('exam'); show('vExam'); renderNav(); renderQ(); tick(); applyStatus();
+  if (d.formula) { $('#bFs').style.display = ''; api('getFormula', token).then(f => { X.fs = f; }).catch(() => { }); }
+  clearInterval(X.t1); clearInterval(X.t2); X.t1 = setInterval(tick, 500); X.t2 = setInterval(doSync, 20000);
+  try { if (navigator.wakeLock) X.wl = await navigator.wakeLock.request('screen'); } catch (e) { }
+}
+const answered = () => X.soal.filter(q => String(X.ans[q.no] || '').trim()).length;
+function renderNav() {
+  if (X.paper) {
+    $('#xNav').innerHTML = X.soal.map(q => `<button data-no="${q.no}" class="${q.jenis === 'ESSAY' ? 'es' : ''}" aria-label="Ke soal ${q.no}">${q.no}</button>`).join('');
+    $('#xProg').textContent = 'Tipe ' + X.tipe + ' • ' + X.soal.length + ' soal • jawab di lembar jawaban';
+    $('#xViol').style.display = X.viol ? '' : 'none'; $('#xViol').textContent = 'Pelanggaran: ' + X.viol + (X.maks ? ' / ' + X.maks : ''); $('#xSaved').textContent = ''; return;
+  }
+  $('#xNav').innerHTML = X.soal.map((q, i) => `<button data-i="${i}" class="${String(X.ans[q.no] || '').trim() ? 'done ' : ''}${i === X.cur ? 'cur ' : ''}${q.jenis === 'ESSAY' ? 'es' : ''}" aria-label="Soal ${q.no}">${q.no}</button>`).join('');
+  $('#xProg').textContent = answered() + ' / ' + X.soal.length + ' terjawab';
+  $('#xViol').style.display = X.viol ? '' : 'none'; $('#xViol').textContent = 'Pelanggaran: ' + X.viol + (X.maks ? ' / ' + X.maks : '');
+}
+$('#xNav').onclick = e => { const b = e.target.closest('button'); if (b && X.paper) { const el = document.getElementById('q' + b.dataset.no); if (el) scrollTo({ top: el.getBoundingClientRect().top + scrollY - 70, behavior: 'smooth' }); return; } if (b) { X.cur = Number(b.dataset.i); renderNav(); renderQ(); } };
+function trapHtml(q) {
+  if (!q.trap) return ''; const m = X.trapMode || 'KEDUANYA', t = esc(q.trap);
+  return m === 'TERSEMBUNYI' ? `<span class="trap-h" aria-hidden="true">${t}</span>` : `<span class="trap-s" aria-hidden="true">${t}</span>`;
+}
+function exLine() { const n = Math.max(2, ...X.soal.filter(q => q.jenis === 'MCQ').map(q => q.opsi.length)); return [1, 3, 0, 2, 1].map((k, i) => (i + 1) + '-' + 'ABCDE'[k % n]).join(', '); }
+function renderPaper() {
+  const pg = X.soal.filter(q => q.jenis === 'MCQ').length;
+  $('#xQ').innerHTML = `<div class="tipe-big"><span class="tn" aria-hidden="true">${X.tipe}</span><div><div style="font-weight:700;font-size:16px">Tipe soal Anda: ${X.tipe}</div><div class="sm">Di bagian atas kertas jawaban tulis jelas: <b>Nama</b>, <b>NIM</b>, dan <b>Tipe ${X.tipe}</b>.</div></div></div>` +
+    `<div class="msg info sm" style="margin:0 0 6px"><b>Cara menulis jawaban</b> (agar terbaca sistem):${pg ? ` pilihan ganda ditulis <b>berderet, 5 nomor per baris</b>, nomor–tanda hubung–huruf kapital:<div class="mono" style="margin:6px 0 2px;line-height:1.6">${exLine()}<br>6-…, 7-…, 8-…</div><div class="sm" style="margin-bottom:6px;opacity:.8">(contoh format, <b>bukan</b> kunci jawaban)</div>` : ''}${X.soal.length > pg ? `Essay: mulai di baris baru, awali dengan nomor dan titik, mis. <b class="mono">${pg + 1}.</b> lalu jawabannya.<br>` : ''}Tulis dengan pulpen hitam/biru, huruf cetak yang jelas. Satu sisi kertas saja.</div>` +
+    X.soal.map(q => `<div class="pq" id="q${q.no}"><div class="q-head"><span class="badge b-blue">Soal ${q.no}</span><span class="badge">${q.jenis === 'MCQ' ? 'Pilihan ganda' : 'Essay'}</span><span class="badge b-amber">${fmtNum(q.bobot)} poin</span></div>
+      <div class="q-text" style="margin-bottom:8px">${rich(q.teks)}${trapHtml(q)}</div>${q.gambar ? `<img class="qimg" src="${esc(q.gambar)}" alt="Gambar soal ${q.no}">` : ''}
+      ${q.jenis === 'MCQ' ? q.opsi.map(o => `<div class="popt"><span class="l">${o.l}</span><span class="grow">${rich(o.t)}</span></div>`).join('') : `<span class="where">Jawab di kertas, awali dengan "${q.no}."</span>`}</div>`).join('');
+}
+function renderQ() {
+  if (X.paper) return renderPaper();
+  const q = X.soal[X.cur], locked = X.status !== 'AKTIF'; if (!q) return;
+  let h = `<div class="q-head"><span class="badge b-blue">Soal ${q.no} dari ${X.soal.length}</span><span class="badge">${q.jenis === 'MCQ' ? 'Pilihan ganda' : 'Essay'}</span><span class="badge b-amber">${fmtNum(q.bobot)} poin</span></div>
+    <div class="q-text">${rich(q.teks)}${trapHtml(q)}</div>${q.gambar ? `<img class="qimg" src="${esc(q.gambar)}" alt="Gambar soal ${q.no}">` : ''}`;
+  if (q.jenis === 'MCQ') h += q.opsi.map(o => `<button class="opt ${X.ans[q.no] === o.l ? 'sel' : ''}" data-l="${o.l}" ${locked ? 'disabled' : ''}><span class="l">${o.l}</span><span class="grow">${rich(o.t)}</span></button>`).join('') +
+    `<div class="sm mut" style="margin-top:6px">${X.ans[q.no] ? '<a href="#" id="clr">Hapus pilihan</a>' : 'Ketuk salah satu pilihan.'}</div>`;
+  else h += `<textarea class="essay" id="es" maxlength="6000" placeholder="Tulis jawaban Anda di sini…" ${locked ? 'disabled' : ''} spellcheck="false" autocomplete="off" autocorrect="off">${esc(X.ans[q.no] || '')}</textarea><div class="sm mut" id="wc"></div>`;
+  $('#xQ').innerHTML = h;
+  $$('#xQ .opt').forEach(b => b.onclick = () => setAns(q.no, b.dataset.l, true));
+  const c = $('#clr'); if (c) c.onclick = e => { e.preventDefault(); setAns(q.no, '', true); };
+  const es = $('#es'); if (es) {
+    let prev = es.value.length; const wc = () => $('#wc').textContent = (es.value.trim() ? es.value.trim().split(/\s+/).length : 0) + ' kata';
+    es.oninput = ev => { if (es.value.length - prev > 60 && ev.inputType !== 'insertFromPaste') viol('INPUT_MASSAL', 'Soal ' + q.no + ': +' + (es.value.length - prev) + ' karakter sekaligus', true); prev = es.value.length; setAns(q.no, es.value, false); wc(); };
+    wc();
+  }
+  $('#bPrev').disabled = X.cur === 0; $('#bNext').disabled = X.cur === X.soal.length - 1;
+}
+function setAns(no, v, rerender) {
+  if (X.status !== 'AKTIF') return;
+  X.ans[no] = v; X.dirty = true; try { localStorage.setItem(bk(), JSON.stringify(X.ans)); } catch (e) { }
+  $('#xSaved').textContent = 'belum tersimpan…'; if (rerender) renderQ(); renderNav();
+}
+$('#bPrev').onclick = () => { if (X.cur > 0) { X.cur--; renderNav(); renderQ(); scrollTo(0, 0); } };
+$('#bNext').onclick = () => { if (X.cur < X.soal.length - 1) { X.cur++; renderNav(); renderQ(); scrollTo(0, 0); } };
+function tick() {
+  const left = X.dl - (Date.now() + X.off), t = $('#xTimer'); t.textContent = fmtTime(left); t.classList.toggle('low', left < 5 * 60000);
+  if (left <= 0 && !X.done && X.status === 'AKTIF') submit(true);
+}
+async function doSync() {
+  if (X.done || !X.token || X.busy) return; X.busy = true;
+  const send = !X.paper && X.dirty && X.status === 'AKTIF' ? JSON.stringify(X.ans) : null; if (send) X.dirty = false;
+  try {
+    const r = await api('sync', X.token, send, answered()); $('#xNet').classList.remove('on');
+    if (send) $('#xSaved').textContent = 'tersimpan ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    X.dl = r.dl; X.off = r.now - Date.now(); X.viol = r.viol;
+    if (r.status !== X.status) { X.status = r.status; applyStatus(); renderQ(); }
+    renderNav();
+  } catch (e) {
+    if (send) X.dirty = true;
+    if (/SESI_TIDAK_VALID/.test(e.message)) { stop(); localStorage.removeItem(TK); return initLogin('Sesi Anda direset oleh dosen. Silakan login kembali.'); }
+    if (e.net) $('#xNet').classList.add('on');
+  } finally { X.busy = false; }
+}
+function applyStatus() {
+  if (X.status === 'SELESAI' || X.status === 'WAKTU_HABIS') return finish(X.status);
+  if (X.status === 'TERKUNCI') shade('Ujian Anda dikunci', 'Jawaban tidak dapat diubah. Hubungi dosen/pengawas untuk membuka kembali.', false);
+  else if ($('#shade').dataset.kind === 'lock') unshade();
+}
+function shade(title, text, canClose) { $('#shTitle').textContent = title; $('#shText').textContent = text; $('#shBtn').style.display = canClose ? '' : 'none'; $('#shade').dataset.kind = canClose ? 'warn' : 'lock'; $('#shade').classList.add('on'); }
+function unshade() { $('#shade').classList.remove('on'); }
+$('#shBtn').onclick = unshade;
+$('#bSubmit').onclick = () => { if (X.paper) { if (confirm('Sudah selesai menulis semua jawaban di lembar jawaban?\nSetelah ini soal tidak bisa dibuka lagi.')) submit(false); return; } const k = X.soal.length - answered(); if (confirm((k ? k + ' soal BELUM dijawab.\n' : '') + 'Kumpulkan jawaban sekarang? Setelah ini jawaban tidak bisa diubah.')) submit(false); };
+async function submit(auto) {
+  if (X.done) return; X.done = true; $('#bSubmit').disabled = true;
+  for (let i = 0; i < 4; i++) {
+    try { await api('submitExam', X.token, X.paper ? null : JSON.stringify(X.ans)); return finish(auto ? 'WAKTU_HABIS' : 'SELESAI'); }
+    catch (e) { if (!e.net) { if (/habis/i.test(e.message)) return finish('WAKTU_HABIS'); X.done = false; $('#bSubmit').disabled = false; return alert(e.message); } await new Promise(r => setTimeout(r, 2500)); }
+  }
+  X.done = false; $('#bSubmit').disabled = false; alert('Gagal mengirim karena koneksi. Jawaban masih tersimpan di perangkat ini — coba tekan Kumpulkan lagi.');
+}
+function stop() { clearInterval(X.t1); clearInterval(X.t2); X.done = true; try { X.wl && X.wl.release(); } catch (e) { } }
+function finish(st) {
+  stop(); try { localStorage.removeItem(bk()); localStorage.removeItem(TK); } catch (e) { }
+  document.body.classList.remove('exam'); unshade(); $('#mFs').classList.remove('on'); show('vDone');
+  const paper = X.paper;
+  $('#dTitle').textContent = st === 'WAKTU_HABIS' ? 'Waktu habis' : paper ? 'Ujian selesai' : 'Jawaban terkumpul';
+  $('#dText').textContent = paper ? (st === 'WAKTU_HABIS' ? 'Berhenti menulis sekarang. ' : '') + 'Pastikan Nama, NIM, dan Tipe ' + X.tipe + ' tertulis di kertas, lalu serahkan lembar jawaban ke pengawas.'
+    : st === 'WAKTU_HABIS' ? 'Jawaban terakhir yang tersimpan sudah dikumpulkan otomatis.' : 'Terima kasih. Jawaban Anda sudah diterima server.';
+}
+$('#bFs').onclick = () => {
+  const f = X.fs; $('#mFs').classList.add('on'); $('#fsBody').classList.remove('mut');
+  $('#fsBody').innerHTML = f ? (f.markup ? renderFS(f.markup) : '') + f.gambar.map(g => `<img class="fs-img" src="${g}" alt="Formula sheet">`).join('') || '<p class="mut">Formula sheet belum tersedia.</p>' : 'memuat… tutup lalu buka lagi sebentar.';
+  $$('#fsBody .fs-img').forEach(i => i.onclick = () => i.classList.toggle('zoom'));
+};
+
+/* ---------- pemantauan pelanggaran ---------- */
+const on = () => X.token && !X.done && document.body.classList.contains('exam');
+function viol(type, detail, quiet) {
+  if (!on()) return;
+  api('logViolation', X.token, type, detail || '').then(r => { if (r && r.count !== undefined) { X.viol = r.count; renderNav(); if (r.locked) { X.status = 'TERKUNCI'; applyStatus(); renderQ(); } } }).catch(() => { });
+  if (!quiet && X.status === 'AKTIF') shade('Pelanggaran tercatat', ({ PINDAH_TAB: 'Anda meninggalkan halaman ujian.', KELUAR_JENDELA: 'Jendela ujian kehilangan fokus (membuka aplikasi/jendela lain).', SCREENSHOT: 'Terdeteksi upaya tangkapan layar.', SALIN: 'Menyalin isi ujian tidak diperbolehkan.', TEMPEL: 'Menempel teks tidak diperbolehkan — ketik jawaban Anda sendiri.', CETAK: 'Mencetak halaman tidak diperbolehkan.' }[type] || '') + ' Kejadian ini dilaporkan ke dosen.', true);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) { X.lastHide = Date.now(); viol('PINDAH_TAB', 'Tab/aplikasi lain dibuka'); } else if (on()) doSync(); });
+window.addEventListener('blur', () => setTimeout(() => { if (!document.hidden && !document.hasFocus() && Date.now() - X.lastHide > 1500) viol('KELUAR_JENDELA', 'Fokus pindah dari jendela ujian'); }, 400));
+['copy', 'cut'].forEach(ev => document.addEventListener(ev, e => { if (on()) { e.preventDefault(); viol('SALIN', ev); } }));
+document.addEventListener('paste', e => { if (on()) { e.preventDefault(); viol('TEMPEL', ((e.clipboardData && e.clipboardData.getData('text')) || '').length + ' karakter'); } });
+document.addEventListener('drop', e => { if (on()) e.preventDefault(); });
+document.addEventListener('contextmenu', e => { if (on()) e.preventDefault(); });
+function keyWatch(e) {
+  if (!on()) return; const k = (e.key || '').toLowerCase();
+  if (k === 'printscreen' || (e.metaKey && e.shiftKey && ['3', '4', '5', 's'].includes(k))) viol('SCREENSHOT', 'Tombol ' + e.key);
+  else if ((e.ctrlKey || e.metaKey) && k === 'p') { e.preventDefault(); viol('CETAK', ''); }
+  else if ((e.ctrlKey || e.metaKey) && ['u', 's'].includes(k)) e.preventDefault();
+}
+document.addEventListener('keydown', keyWatch); document.addEventListener('keyup', e => { if ((e.key || '').toLowerCase() === 'printscreen') keyWatch(e); });
+window.addEventListener('pagehide', () => {
+  if (!on()) return;
+  try { navigator.sendBeacon(CONFIG.API_URL, JSON.stringify({ fn: 'sync', args: [X.token, X.paper ? null : JSON.stringify(X.ans), X.paper ? 0 : answered()] })); navigator.sendBeacon(CONFIG.API_URL, JSON.stringify({ fn: 'logViolation', args: [X.token, 'TUTUP_HALAMAN', 'Halaman ditutup / dimuat ulang'] })); } catch (e) { }
+});
+window.addEventListener('beforeunload', e => { if (on()) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ---------- mulai ---------- */
+(async () => {
+  const t = localStorage.getItem(TK);
+  if (t) { try { return await startExam(t); } catch (e) { if (!e.net) localStorage.removeItem(TK); else return initLogin(e.message); } }
+  initLogin();
+})();
+</script>
+</body>
+</html>

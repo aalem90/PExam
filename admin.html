@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Dasbor Dosen — Ujian Online</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<link rel="stylesheet" href="app.css">
+<style>
+.bar{background:var(--navy);color:#fff;padding:10px 16px;position:sticky;top:0;z-index:30}
+.bar .in{max-width:1180px;margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.bar select{color:var(--ink);width:auto;max-width:100%;min-width:220px;font-weight:600}
+.tabs{display:flex;gap:4px;overflow-x:auto;max-width:1180px;margin:10px auto 0;padding:0 16px;scrollbar-width:thin}
+.tabs button{font:600 13.5px inherit;padding:9px 12px;border:1px solid var(--line);border-bottom:0;background:#e9e6de;border-radius:10px 10px 0 0;cursor:pointer;white-space:nowrap;color:#444b63}
+.tabs button.on{background:#fff;color:var(--navy);box-shadow:inset 0 3px 0 var(--amber)}
+.tabs .sep{flex:0 0 10px}
+section.tab{display:none}section.tab.on{display:block}
+.stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px}.stat b{display:block;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}.stat span{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.04em}
+.qc{border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;background:#fff}.qc.err{border-color:#e2a09b;background:#fff8f7}
+.qc .o{display:flex;gap:8px;padding:3px 0}.qc .o.k{font-weight:700;color:var(--green)}.qc mark{background:#ffe9a8;padding:0 2px;border-radius:3px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{font:600 13px inherit;padding:6px 12px;border-radius:99px;border:1px solid #bdb8ac;background:#fff;cursor:pointer}.chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+details{border:1px dashed #c9c4b6;border-radius:10px;padding:10px 12px;margin:12px 0;background:#fbfaf6}details summary{cursor:pointer;font-weight:600}
+.two{display:grid;gap:12px;grid-template-columns:1fr 1fr}@media(max-width:800px){.two{grid-template-columns:1fr}}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.pwc{border:1px dashed #888;border-radius:8px;padding:10px;text-align:center;break-inside:avoid}.pwc b{display:block;font:700 22px ui-monospace,Menlo,monospace;letter-spacing:.2em}
+.ov{position:relative}.ov canvas{width:100%;height:auto;border:1px solid var(--line);border-radius:8px}.pgsel{display:flex;gap:4px;margin:6px 0}
+.pgg{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px}.pgg label{margin:0;display:flex;gap:4px;align-items:center;font-weight:600}.pgg select{padding:4px;width:auto}.pgg .warn select{border-color:var(--amber);background:var(--amber-bg)}
+img.esimg{width:100%;border:1px solid var(--line);border-radius:8px;background:#fff}
+.cmp{background:#f6f4ee;border-radius:8px;padding:8px 10px;font-size:13.5px;white-space:pre-wrap}
+#psCards{display:none}@media print{#psCards{display:grid}}
+#pin{font:700 26px ui-monospace,Menlo,monospace;letter-spacing:.4em;text-align:center}
+@media print{.bar,.tabs,section.tab:not(.print){display:none!important}}
+</style>
+</head>
+<body>
+<main id="vPin" class="wrap narrow" style="display:none"><div class="card" style="margin-top:50px">
+  <h1>Dasbor Dosen</h1><p class="mut sm">Masukkan PIN dosen (6 digit) dari hasil <code>setup</code> di Apps Script.</p>
+  <input type="password" id="pin" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••••">
+  <div id="pinMsg"></div><button class="btn big" id="bPin" style="margin-top:10px">Masuk</button>
+</div></main>
+
+<div id="vApp" style="display:none">
+  <div class="bar noprint"><div class="in">
+    <b>Dasbor Dosen</b>
+    <select id="selMk" aria-label="Mata kuliah aktif"></select>
+    <span class="sm" id="mkMeta" style="opacity:.85"></span>
+    <button class="btn sec xs right" id="bOut">Keluar</button>
+  </div></div>
+  <div class="tabs noprint" id="tabs"></div>
+  <div class="wrap" style="padding-top:14px"><div id="toast"></div>
+
+  <!-- 1 MATA KULIAH -->
+  <section class="tab" id="t-mk">
+    <div class="two">
+      <div class="card"><h2 id="mkFormTitle">Mata kuliah</h2>
+        <label>Nama mata kuliah / ujian</label><input type="text" id="mkNama" placeholder="mis. Pengenalan Bidang Studi Teknik Perminyakan">
+        <div class="grid"><div><label>Durasi (menit)</label><input type="number" id="mkDur" min="1" value="55"></div>
+          <div><label>Batas pelanggaran → kunci otomatis</label><input type="number" id="mkMaks" min="0" value="0"><div class="sm mut">0 = hanya dicatat</div></div></div>
+        <div class="grid"><div><label>Dibuka (opsional)</label><input type="datetime-local" id="mkBuka"></div><div><label>Ditutup (opsional)</label><input type="datetime-local" id="mkTutup"></div></div>
+        <label>Cara mahasiswa menjawab</label>
+        <select id="mkMode"><option value="KERTAS">Di kertas — layar hanya menampilkan soal, lembar jawaban dipindai</option><option value="ONLINE">Di platform — mahasiswa mengetik/memilih jawaban di layar</option></select>
+        <label class="chk"><input type="checkbox" id="mkAktif"> <span><b>Aktif</b> — muncul di halaman login mahasiswa</span></label>
+        <div class="row" style="margin-top:10px"><button class="btn" id="bMkSave">Simpan</button><button class="btn sec" id="bMkNew">＋ Mata kuliah baru</button><button class="btn sec right" id="bMkDel">Hapus</button></div>
+      </div>
+      <div class="card"><h2>Semua mata kuliah</h2><div class="tblw"><table class="t" id="mkList"></table></div>
+        <p class="sm mut">Klik baris untuk memilih. Urutan kerja: <b>Peserta → Bank &amp; Generator → QC → Bobot → Formula</b>, lalu centang <b>Aktif</b> saat ujian.</p></div>
+    </div>
+  </section>
+
+  <!-- 2 PESERTA -->
+  <section class="tab" id="t-ps">
+    <div class="card noprint"><h2>Peserta &amp; password</h2>
+      <p class="sm mut">Unggah daftar mahasiswa (Excel/CSV, mis. ekspor SIAKAD) — cukup kolom <b>NIM</b> dan <b>Nama</b> (Kelas opsional). Baris judul di atas tabel diabaikan otomatis. Password login <b>4 karakter</b> dibuat otomatis untuk tiap mahasiswa (huruf kapital &amp; angka, tanpa karakter mirip seperti 0/O, 1/I). Daftar ini dipakai semua mata kuliah; kolom opsional <i>Course</i> membatasi ke mata kuliah tertentu.</p>
+      <div class="row"><input type="file" id="psFile" accept=".xlsx,.xls,.csv" style="max-width:260px"><label class="chk"><input type="checkbox" id="psRep"> Ganti seluruh daftar</label></div>
+      <label>…atau tempel dari Excel (NIM ⇥ Nama ⇥ Kelas per baris; kelas boleh kosong)</label><textarea id="psPaste" placeholder="27250001	Ihsan Riyadi	A"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn" id="bPsImp">Impor</button><button class="btn sec" id="bPsGen">Buat password yang kosong</button><button class="btn sec" id="bPsRegen">Buat ulang semua password</button></div>
+      <div class="row" style="margin-top:8px"><b class="sm">Unduh PDF:</b><button class="btn ok" id="bPsPdf">Password login (tabel + kartu potong)</button><button class="btn sec" id="bPdfTipe2">Daftar mahasiswa &amp; tipe soal</button><button class="btn sec" id="bPsCsv">CSV</button></div>
+    </div>
+    <div class="tblw noprint"><table class="t" id="psTbl"></table></div>
+    <div id="psCards" class="cards"></div>
+  </section>
+
+  <!-- 3 BANK & GENERATOR -->
+  <section class="tab" id="t-bk">
+    <div class="two">
+      <div class="card"><h2>A. Bank soal pilihan ganda</h2><div class="sm mut" id="bkMcqInfo"></div>
+        <div class="row" style="margin-top:8px"><input type="file" id="bkMcqFile" accept=".xlsx,.xls,.csv,.docx,.txt" style="max-width:240px"><label class="chk"><input type="checkbox" id="bkMcqRep" checked> Ganti bank lama</label></div>
+        <details><summary>Tempel dari Word / teks</summary><div class="sm mut">Format: <code>1. Soal…</code>, baris <code>A. …</code> s.d. <code>E. …</code>, lalu <code>Kunci: B</code> (opsional <code>Bobot: 2</code>).</div><textarea id="bkMcqText" style="min-height:140px"></textarea></details>
+        <button class="btn" id="bBkMcq">Impor pilihan ganda</button></div>
+      <div class="card"><h2>B. Bank soal essay</h2><div class="sm mut" id="bkEsInfo"></div>
+        <div class="row" style="margin-top:8px"><input type="file" id="bkEsFile" accept=".xlsx,.xls,.csv,.docx,.txt" style="max-width:240px"><label class="chk"><input type="checkbox" id="bkEsRep" checked> Ganti bank lama</label></div>
+        <details><summary>Tempel dari Word / teks</summary><div class="sm mut">Format: <code>1. Soal…</code>, lalu baris <code>Jawaban: …</code>, <code>Keyword: …</code>, <code>Rubrik: …</code>, <code>Variasi: …</code>.</div><textarea id="bkEsText" style="min-height:140px"></textarea></details>
+        <div class="row"><button class="btn" id="bBkEs">Impor essay</button><button class="btn sec" id="bEsAdd">＋ Tulis soal essay manual</button></div>
+        <div class="tblw" id="esWrap" style="margin-top:10px;display:none"><table class="t" id="esTbl"></table></div></div>
+    </div>
+    <div class="row" style="margin:-4px 0 14px"><button class="btn sec" id="bTplW">Unduh template Word</button><button class="btn sec" id="bTpl">Unduh template Excel</button><span class="sm mut">Pilih salah satu. Satu file boleh berisi PG dan essay sekaligus — impor file yang sama di kotak A lalu di kotak B; sistem mengambil bagiannya masing-masing.</span></div>
+    <div class="card"><h2>Pengaturan pembuatan tipe ujian</h2>
+      <div class="grid">
+        <div><label>Jumlah tipe ujian (1–6)</label><select id="gTipe"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div>
+        <div><label>Jumlah soal PG dipakai</label><input type="number" id="gNm" min="0" value="0"><div class="sm mut">0 = semua soal di bank</div></div>
+        <div><label>Jumlah soal essay dipakai</label><input type="number" id="gNe" min="0" value="0"><div class="sm mut">0 = semua</div></div>
+        <div><label>Parafrase soal PG (maks 3 kata/frasa)</label><select id="gPara"><option value="KAMUS">Kamus bawaan + kolom parafrase bank</option><option value="BANK">Hanya kolom parafrase di bank</option><option value="OFF">Tidak diparafrase</option></select></div>
+      </div>
+      <div class="row"><label class="chk"><input type="checkbox" id="gAs"> Acak urutan soal</label><label class="chk"><input type="checkbox" id="gAo"> Acak urutan pilihan jawaban</label></div>
+      <h3 style="margin-top:14px">C. Jebakan AI pada essay <span class="badge">opsional</span></h3>
+      <label class="chk"><input type="checkbox" id="gTrap"> <span>Aktifkan. Kalimat instruksi tak kasatmata disisipkan di soal essay; bila soal disalin/di-screenshot ke AI, jawaban AI akan memuat istilah unik yang berbeda di tiap tipe dan soal.</span></label>
+      <div id="trapBox">
+        <div class="grid"><div><label>Cara menyembunyikan</label><select id="gTrapMode"><option value="KEDUANYA">Teks sangat samar — ikut screenshot &amp; salin teks (disarankan)</option><option value="TERSEMBUNYI">Tersembunyi total — hanya ikut salin teks / ekstensi AI</option></select></div></div>
+        <label>Kalimat jebakan — <code>{KATA}</code> diganti istilah unik</label><textarea id="gTrapTpl" style="min-height:60px"></textarea>
+        <label>Daftar istilah unik (pisahkan koma; minimal sebanyak tipe × soal essay)</label><textarea id="gTrapKata" style="min-height:60px"></textarea>
+        <div class="sm mut">Jebakan per soal bisa diatur di kolom <code>jebakan</code> bank essay (isi <code>OFF</code> untuk soal tanpa jebakan) atau diedit di tab QC.</div>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="btn" id="bGen">Simpan &amp; buat tipe ujian</button><span class="sm mut">Setelah dibuat, periksa di tab <b>QC</b>.</span></div>
+      <details><summary>Opsional: minta usulan parafrase dari chat AI (tanpa API)</summary>
+        <p class="sm mut">Salin prompt → tempel di chat AI langganan Anda → tempel balasannya di sini. Usulan disimpan ke kolom <code>parafrase</code> bank dan tetap melewati QC.</p>
+        <div class="row"><button class="btn sec" id="bParaCopy">Salin prompt</button></div><textarea id="paraJson" placeholder='{"M1":[["dari","pengganti"]]}'></textarea><button class="btn sec" id="bParaApply" style="margin-top:8px">Terapkan usulan</button></details>
+    </div>
+  </section>
+
+  <!-- 4 QC -->
+  <section class="tab" id="t-qc">
+    <div class="card"><div class="row"><h2 class="grow" style="margin:0">QC soal, pilihan, dan kunci</h2><button class="btn sec" id="bQcReload">Muat ulang</button></div>
+      <div class="row" style="margin-top:8px"><b class="sm">Unduh:</b><button class="btn ok" id="bPdfKunci">PDF soal &amp; kunci per tipe</button><button class="btn sec" id="bPdfTipe">PDF daftar mahasiswa &amp; tipe</button><button class="btn sec" id="bQcXls">Excel semua tipe + kunci</button><button class="btn sec right" id="bTipeReset" title="Hanya untuk mahasiswa yang belum login">Bagi ulang tipe</button></div>
+      <div class="row" style="margin-top:10px"><div class="chips" id="qcTipe"></div><span class="right" id="qcSum"></span></div>
+      <div class="row" style="margin-top:8px"><label class="chk"><input type="checkbox" id="qcOnly"> Hanya yang perlu dicek</label></div></div>
+    <div id="qcList"></div>
+  </section>
+
+  <!-- 5 BOBOT -->
+  <section class="tab" id="t-bb">
+    <div class="card"><div class="row"><h2 class="grow" style="margin:0">Poin soal <span class="sm mut" style="font-weight:400">— total pilihan ganda + essay wajib 100</span></h2><div class="stat" id="bbTotBox" style="min-width:170px;text-align:center"><b id="bbTot">–</b><span id="bbTotNote"></span></div></div>
+      <div class="two" style="margin-top:12px">
+        <div class="card" style="margin:0;background:#fbfaf6" id="bbBoxM"><h3>Pilihan ganda <span class="sm mut" id="bbNM"></span></h3>
+          <label class="chk"><input type="radio" name="bbModeM" value="rata"> <span>Sama rata — isi total poin PG:</span></label>
+          <input type="text" inputmode="decimal" id="bbM" placeholder="mis. 70" style="max-width:140px;margin-left:26px">
+          <label class="chk"><input type="radio" name="bbModeM" value="per_soal"> <span>Atur poin tiap soal (di tabel)</span></label>
+          <div class="sm" style="margin-top:6px">Subtotal PG: <b id="bbSubM">–</b></div></div>
+        <div class="card" style="margin:0;background:#fbfaf6" id="bbBoxE"><h3>Essay <span class="sm mut" id="bbNE"></span></h3>
+          <label class="chk"><input type="radio" name="bbModeE" value="rata"> <span>Sama rata — isi total poin essay:</span></label>
+          <input type="text" inputmode="decimal" id="bbE" placeholder="mis. 30" style="max-width:140px;margin-left:26px">
+          <label class="chk"><input type="radio" name="bbModeE" value="per_soal"> <span>Atur poin tiap soal (di tabel)</span></label>
+          <div class="sm" style="margin-top:6px">Subtotal essay: <b id="bbSubE">–</b></div></div>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn" id="bBbSave">Simpan poin</button><button class="btn sec" id="bBbFix">Lengkapi otomatis agar total 100</button><span class="sm mut" id="bbHint"></span></div>
+    </div>
+    <div class="tblw"><table class="t" id="bbTbl"></table></div>
+    <p class="sm mut">Poin melekat pada soal di bank, jadi sama untuk semua tipe walau urutan nomornya berbeda. Soal yang berurutan di tabel mengikuti tipe 1.</p>
+  </section>
+
+  <!-- 6 FORMULA -->
+  <section class="tab" id="t-fs">
+    <div class="two">
+      <div class="card"><h2>Formula sheet</h2>
+        <label>Impor dari Word, PDF, atau gambar</label><input type="file" id="fsFile" accept=".docx,.pdf,image/*">
+        <div class="sm mut" id="fsNote" style="margin-top:4px">Word/PDF: teksnya dimasukkan ke editor di bawah untuk dirapikan. PDF &amp; gambar juga ditampilkan apa adanya (maks 4 halaman).</div>
+        <label>Isi formula sheet (dirender rapi untuk mahasiswa)</label>
+        <textarea id="fsMarkup" style="min-height:260px;font-family:ui-monospace,Menlo,monospace;font-size:13px" spellcheck="false"></textarea>
+        <div class="sm mut"><code># Judul bagian</code> • <code>Nama :: $rumus LaTeX$ :: keterangan</code> • <code>- butir</code>. Contoh: <code>Tegangan geser :: $\tau = \dfrac{T c}{J}$ :: c jari-jari luar</code></div>
+        <div id="fsImgs" class="row" style="margin-top:10px"></div>
+        <label class="chk"><input type="checkbox" id="fsShow"> Tampilkan tombol <b>Formula</b> kepada mahasiswa saat ujian mata kuliah ini</label>
+        <div class="row"><button class="btn" id="bFsSave">Simpan formula sheet</button></div>
+        <details><summary>Opsional: ketik ulang rumus dari gambar lewat chat AI (tanpa API)</summary><p class="sm mut">Salin prompt ini, tempel ke chat AI bersama foto/PDF formula sheet, lalu tempel hasilnya ke editor di atas.</p><button class="btn sec" id="bFsPrompt">Salin prompt</button></details>
+      </div>
+      <div class="card"><h2>Pratinjau tampilan mahasiswa</h2><div id="fsPrev"></div></div>
+    </div>
+  </section>
+
+  <!-- 7 MONITOR -->
+  <section class="tab" id="t-mon">
+    <div class="grid" id="monStats" style="margin-bottom:12px"></div>
+    <div class="card" style="padding:10px 12px"><div class="row"><input type="text" id="monQ" placeholder="Cari nama / NIM…" style="max-width:240px"><label class="chk"><input type="checkbox" id="monAuto" checked> Segarkan otomatis tiap 10 detik</label><span class="sm mut right" id="monAt"></span><button class="btn sec xs" id="bMonRef">Segarkan</button></div></div>
+    <div class="tblw"><table class="t" id="monTbl"></table></div>
+    <p class="sm mut"><b>+5 menit</b> menambah waktu (juga membuka kembali yang kehabisan waktu). <b>Kunci</b> membekukan jawaban sampai dibuka. <b>Reset log</b> menghapus hitungan pelanggaran. <b>Reset sesi</b> mengulang ujian mahasiswa itu dari awal.</p>
+  </section>
+
+  <!-- 8 PELANGGARAN -->
+  <section class="tab" id="t-vl">
+    <div class="card"><h2>Reset log pelanggaran</h2><div class="row"><input type="text" id="rNim" placeholder="NIM (kosongkan = semua mahasiswa)" style="max-width:280px"><label class="chk"><input type="checkbox" id="rDel"> Hapus permanen barisnya</label><button class="btn warn" id="bRLog">Reset log</button></div>
+      <div class="sm mut">Tanpa centang, baris hanya ditandai DIRESET sehingga jejaknya tetap ada. Reset juga membuka ujian yang terkunci otomatis dan blokir password salah.</div></div>
+    <div class="tblw"><table class="t" id="vlTbl"></table></div>
+  </section>
+
+  <!-- 9 KOREKSI -->
+  <section class="tab" id="t-gr">
+    <div class="card" id="scCard"><h2>Unggah jawaban tulisan tangan</h2>
+      <p class="sm mut" style="margin:0 0 8px">Foto atau PDF lembar jawaban (kertas bebas). <b>Satu file per mahasiswa</b>, atau beri nama file dengan NIM (mis. <code>27250001_1.jpg</code>, <code>27250001_2.jpg</code>) agar beberapa foto digabung. Bila NIM tidak ada di nama file, NIM dibaca dari tulisan di kertas. Tulisan dibaca dengan OCR Google Drive, dipecah per nomor soal, lalu dinilai.</p>
+      <div class="row"><input type="file" id="hdFiles" accept="application/pdf,image/*" multiple style="max-width:320px"><button class="btn" id="bHdRead">Baca &amp; nilai</button><span class="sm mut" id="hdProg"></span></div>
+      <div class="tblw" id="hdWrap" style="display:none;margin-top:10px"><table class="t" id="hdTbl"></table></div>
+    </div>
+    <div class="card"><div class="row"><h2 class="grow" style="margin:0">Koreksi otomatis</h2><button class="btn" id="bGrade">Koreksi semua</button></div>
+      <p class="sm mut" style="margin:8px 0 0">PG dicocokkan dengan kunci tiap tipe. Essay dinilai dari keyword + jawaban inti. Klik nama mahasiswa untuk melihat jawaban, mengubah nilai, dan feedback. Nilai yang Anda ubah tidak ditimpa saat koreksi ulang.</p>
+      <div class="row" style="margin-top:10px"><input type="text" id="grQ" placeholder="Cari nama / NIM…" style="max-width:240px"><label class="chk"><input type="checkbox" id="grCek"> Hanya essay yang perlu dilihat ulang (Partially Correct / Far)</label></div></div>
+    <div class="tblw"><table class="t" id="grTbl"></table></div>
+    <details><summary>Impor jawaban dari luar sistem (Excel/CSV)</summary><p class="sm mut">Kolom: <b>NIM, Tipe, No, Jawaban</b> — satu baris per soal. Untuk ujian kertas yang diketik ulang atau ekspor dari aplikasi lain.</p><div class="row"><input type="file" id="grFile" accept=".xlsx,.xls,.csv" style="max-width:260px"><button class="btn sec" id="bGrImp">Impor jawaban</button></div></details>
+    <details><summary>Opsional: koreksi essay dibantu chat AI (tanpa API, 10 mahasiswa per kelompok)</summary>
+      <p class="sm mut">Untuk penilaian yang membaca makna kalimat. Salin prompt → tempel di chat AI → tempel balasan JSON → Terapkan. Prompt hanya memuat NIM, bukan nama.</p>
+      <div class="row"><label style="margin:0">Kelompok</label><select id="aiBatch" style="width:auto"></select><label class="chk"><input type="checkbox" id="aiOnly"> hanya yang belum dinilai AI/manual</label><button class="btn sec" id="bAiCopy">Salin prompt</button></div>
+      <textarea id="aiJson" placeholder='{"hasil":[…]}' style="margin-top:8px"></textarea><button class="btn sec" id="bAiApply" style="margin-top:8px">Terapkan hasil</button></details>
+  </section>
+
+  <!-- 10 KECURANGAN -->
+  <section class="tab" id="t-ch">
+    <div class="card"><div class="row"><h2 class="grow" style="margin:0">Deteksi kemiripan jawaban</h2><button class="btn" id="bCheat">Analisis</button></div>
+      <p class="sm mut" style="margin:8px 0 0">PG dibandingkan berdasarkan soal &amp; pilihan <b>asli</b> (bukan huruf), jadi tetap terdeteksi walau tipe berbeda. Yang dihitung adalah jawaban <b>salah yang sama</b>. Essay dibandingkan per soal asli. Hasil ini indikasi untuk ditindaklanjuti, bukan bukti.</p>
+      <div class="row" style="margin-top:10px"><div class="chips" id="chRisk"></div><label class="chk"><input type="checkbox" id="chBeda"> Hanya pasangan beda tipe</label></div></div>
+    <div id="chTrap"></div><div id="chList"></div>
+  </section>
+
+  <!-- 11 NILAI -->
+  <section class="tab" id="t-fn">
+    <div class="grid" id="fnStats" style="margin-bottom:12px"></div>
+    <div class="card" style="padding:10px 12px"><div class="row"><b>Nilai akhir &amp; peringkat</b><button class="btn sec xs right" id="bFnRef">Muat ulang</button><button class="btn xs" id="bFnXls">Ekspor Excel</button><button class="btn sec xs" id="bFnCsv">Ekspor CSV (NIM, Nama, Score)</button></div></div>
+    <div class="tblw"><table class="t" id="fnTbl"></table></div>
+  </section>
+  </div>
+</div>
+
+<datalist id="rosterList"></datalist>
+<div class="modal" id="mod"><div class="box"><div class="head"><h2 class="grow" id="modT"></h2><button class="btn sec" onclick="closeMod()">Tutup</button></div><div id="modB"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="config.js"></script>
+<script src="common.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
