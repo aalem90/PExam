@@ -102,6 +102,13 @@ img.esimg{width:100%;border:1px solid var(--line);border-radius:8px;background:#
         <div><label>Parafrase soal PG (maks 3 kata/frasa)</label><select id="gPara"><option value="KAMUS">Kamus bawaan + kolom parafrase bank</option><option value="BANK">Hanya kolom parafrase di bank</option><option value="OFF">Tidak diparafrase</option></select></div>
       </div>
       <div class="row"><label class="chk"><input type="checkbox" id="gAs"> Acak urutan soal</label><label class="chk"><input type="checkbox" id="gAo"> Acak urutan pilihan jawaban</label></div>
+      <h3 style="margin-top:14px">Pembagian soal essay per tipe</h3>
+      <label class="chk"><input type="radio" name="esMode" value="auto"> <span><b>Otomatis</b> — semua tipe mendapat soal essay yang sama (urutan diacak).</span></label>
+      <label class="chk"><input type="radio" name="esMode" value="manual"> <span><b>Saya atur sendiri</b> — centang soal essay untuk tiap tipe. Jumlahnya boleh berbeda; poin dicek agar total tiap tipe tetap 100.</span></label>
+      <div id="esMapBox" style="display:none">
+        <div class="row" style="margin:6px 0"><button class="btn sec xs" id="bEsMapRR">Bagi bergiliran ke semua tipe</button><button class="btn sec xs" id="bEsMapAll">Semua tipe dapat semua</button><button class="btn sec xs" id="bEsMapNone">Kosongkan</button></div>
+        <div class="tblw"><table class="t" id="esMapTbl"></table></div>
+      </div>
       <h3 style="margin-top:14px">C. Jebakan AI pada essay <span class="badge">opsional</span></h3>
       <label class="chk"><input type="checkbox" id="gTrap"> <span>Aktifkan. Kalimat instruksi tak kasatmata disisipkan di soal essay; bila soal disalin/di-screenshot ke AI, jawaban AI akan memuat istilah unik yang berbeda di tiap tipe dan soal.</span></label>
       <div id="trapBox">

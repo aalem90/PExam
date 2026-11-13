@@ -229,7 +229,30 @@ LOAD.bk = async () => {
   $('#gAs').checked = yes(c.acak_soal); $('#gAo').checked = yes(c.acak_opsi); $('#gTrap').checked = yes(c.jebakan_aktif); $('#gTrapMode').value = c.jebakan_mode || 'KEDUANYA';
   $('#gTrapTpl').value = c.jebakan_template || ''; $('#gTrapKata').value = c.jebakan_kata || ''; $('#trapBox').style.display = $('#gTrap').checked ? '' : 'none';
   renderEsList(d.essay);
+  let m = null; try { m = JSON.parse(String(c.essay_tipe || '').trim() || 'null'); } catch (e) { m = null; }
+  A.esMap = m && Object.keys(m).length ? m : null;
+  $$('input[name=esMode]').forEach(r => r.checked = r.value === (A.esMap ? 'manual' : 'auto')); renderEsMap();
 };
+/* ---- pembagian essay per tipe ---- */
+const esActive = () => ((A.bank && A.bank.essay) || []).filter(q => String(q.aktif) === '' || yes(q.aktif));
+function esMapGet() { const m = {}; const n = Number($('#gTipe').value) || 1; for (let k = 1; k <= n; k++) m[k] = []; $$('#esMapTbl input[data-k]:checked').forEach(x => m[x.dataset.k].push(x.dataset.e)); return m; }
+function renderEsMap() {
+  const manual = ($('input[name=esMode]:checked') || {}).value === 'manual', es = esActive(), n = Number($('#gTipe').value) || 1;
+  $('#esMapBox').style.display = manual ? '' : 'none'; $('#gNe').disabled = manual; if (!manual) return;
+  const cur = A.esMap || {}, has = (k, id) => (cur[k] || cur[String(k)] || []).map(String).includes(String(id));
+  const cnt = k => es.filter(q => has(k, q.id)).length;
+  if (!es.length) { $('#esMapTbl').innerHTML = '<tr><td class="mut">Belum ada soal essay di bank.</td></tr>'; return; }
+  $('#esMapTbl').innerHTML = `<tr><th>Soal essay</th><th class="r">Poin</th>${Array.from({ length: n }, (_, i) => `<th style="text-align:center">Tipe ${i + 1}</th>`).join('')}</tr>` +
+    es.map(q => `<tr><td><b class="mono">${esc(q.id)}</b> <span class="sm">${esc(String(q.soal).slice(0, 90))}</span></td><td class="r num">${fmtNum(q.bobot === '' ? 1 : parseNum(q.bobot))}</td>${Array.from({ length: n }, (_, i) => `<td style="text-align:center"><input type="checkbox" data-k="${i + 1}" data-e="${esc(q.id)}" ${has(i + 1, q.id) ? 'checked' : ''} aria-label="${esc(q.id)} untuk tipe ${i + 1}"></td>`).join('')}</tr>`).join('') +
+    `<tr><td class="sm mut" colspan="2">Jumlah essay per tipe</td>${Array.from({ length: n }, (_, i) => { const c = cnt(i + 1); return `<td style="text-align:center"><span class="badge ${c ? 'b-blue' : 'b-red'}">${c}</span></td>`; }).join('')}</tr>`;
+}
+const esMapSet = m => { A.esMap = m; renderEsMap(); };
+$('#esMapTbl').onchange = () => { A.esMap = esMapGet(); renderEsMap(); };
+$$('input[name=esMode]').forEach(r => r.onchange = () => { if (r.value === 'manual' && !A.esMap) { const m = {}, n = Number($('#gTipe').value) || 1; for (let k = 1; k <= n; k++) m[k] = esActive().map(q => String(q.id)); A.esMap = m; } renderEsMap(); });
+$('#gTipe').addEventListener('change', renderEsMap);
+$('#bEsMapAll').onclick = () => { const m = {}, n = Number($('#gTipe').value) || 1; for (let k = 1; k <= n; k++) m[k] = esActive().map(q => String(q.id)); esMapSet(m); };
+$('#bEsMapNone').onclick = () => { const m = {}, n = Number($('#gTipe').value) || 1; for (let k = 1; k <= n; k++) m[k] = []; esMapSet(m); };
+$('#bEsMapRR').onclick = () => { const m = {}, n = Number($('#gTipe').value) || 1; for (let k = 1; k <= n; k++) m[k] = []; esActive().forEach((q, i) => m[(i % n) + 1].push(String(q.id))); esMapSet(m); };
 function renderEsList(list) {
   $('#esWrap').style.display = list.length ? '' : 'none';
   $('#esTbl').innerHTML = '<tr><th>ID</th><th>Soal essay</th><th class="r">Poin</th><th></th></tr>' + list.map(q => `<tr><td class="mono">${esc(q.id)}</td><td>${esc(String(q.soal).slice(0, 120))}${String(q.jawaban_inti).trim() ? '' : ' <span class="badge b-amber">belum ada jawaban inti</span>'}</td><td class="r num">${fmtNum(q.bobot === '' ? 1 : parseNum(q.bobot))}</td><td><div class="row" style="gap:4px"><button class="btn sec xs" data-esed="${esc(q.id)}">Edit</button><button class="btn sec xs" data-esdel="${esc(q.id)}">Hapus</button></div></td></tr>`).join('');
@@ -273,9 +296,15 @@ $('#bBkEs').onclick = () => impBank('ESSAY', '#bkEsFile', '#bkEsText', '#bkEsRep
 $('#bTpl').onclick = () => { location.href = 'template_bank_soal.xlsx'; };
 $('#bTplW').onclick = () => { location.href = 'template_bank_soal.docx'; };
 $('#bGen').onclick = () => run('#bGen', async () => {
-  const c = cur();
+  const c = cur(), manual = ($('input[name=esMode]:checked') || {}).value === 'manual';
+  let essay_tipe = '';
+  if (manual) {
+    const m = esMapGet(), kosong = Object.keys(m).filter(k => !m[k].length);
+    if (esActive().length && kosong.length) throw new Error('Tipe ' + kosong.join(', ') + ' belum diberi soal essay. Centang minimal satu soal essay untuk tiap tipe.');
+    essay_tipe = JSON.stringify(m);
+  }
   await call('adminSaveCourse', { id: A.cid, nama: c.nama, durasi_menit: c.durasi_menit, jumlah_tipe: Number($('#gTipe').value), n_mcq: Number($('#gNm').value) || 0, n_essay: Number($('#gNe').value) || 0, parafrase: $('#gPara').value,
-    acak_soal: $('#gAs').checked, acak_opsi: $('#gAo').checked, jebakan_aktif: $('#gTrap').checked, jebakan_mode: $('#gTrapMode').value, jebakan_template: $('#gTrapTpl').value.trim(), jebakan_kata: $('#gTrapKata').value.trim() });
+    acak_soal: $('#gAs').checked, acak_opsi: $('#gAo').checked, jebakan_aktif: $('#gTrap').checked, jebakan_mode: $('#gTrapMode').value, jebakan_template: $('#gTrapTpl').value.trim(), jebakan_kata: $('#gTrapKata').value.trim(), essay_tipe });
   try { A.pk = await call('adminGenerate', A.cid, false); }
   catch (e) { if (!/SUDAH_ADA_SESI/.test(e.message)) throw e; if (!confirm('Sudah ada mahasiswa yang mulai/selesai ujian ini. Membuat ulang akan mengubah soal dan kunci mereka.\n\nTetap buat ulang?')) return; A.pk = await call('adminGenerate', A.cid, true); }
   await reloadCourses(); const er = A.pk.qc.filter(q => q.level === 'ERROR').length; go('qc');
@@ -350,53 +379,75 @@ $('#bQcXls').onclick = () => {
 LOAD.bb = async () => {
   const [d, pk] = await Promise.all([call('adminGetBank', A.cid), call('adminGetPaket', A.cid)]), c = d.course; A.bank = d; A.pk = pk;
   const act = q => String(q.aktif) === '' || yes(q.aktif), M = Object.fromEntries(d.mcq.map(q => [String(q.id), q])), E = Object.fromEntries(d.essay.map(q => [String(q.id), q]));
-  let rows; const tp = [...new Set(pk.paket.map(p => Number(p.tipe)))].sort((a, b) => a - b);
-  if (tp.length) rows = pk.paket.filter(p => Number(p.tipe) === tp[0]).sort((a, b) => a.no - b.no).map(p => ({ no: p.no, j: p.jenis, q: (p.jenis === 'MCQ' ? M : E)[String(p.bank_id)] || { id: p.bank_id, soal: p.soal, bobot: 0 } }));
-  else { let n = 0; rows = d.mcq.filter(act).map(q => ({ no: ++n, j: 'MCQ', q })).concat(d.essay.filter(act).map(q => ({ no: ++n, j: 'ESSAY', q }))); }
-  A.bbRows = rows;
+  const tp = [...new Set(pk.paket.map(p => Number(p.tipe)))].sort((a, b) => a - b), tipeEs = {};
+  let mcqRows;
+  if (tp.length) {
+    mcqRows = pk.paket.filter(p => Number(p.tipe) === tp[0] && p.jenis === 'MCQ').sort((a, b) => a.no - b.no).map(p => ({ no: p.no, q: M[String(p.bank_id)] || { id: p.bank_id, soal: p.soal, bobot: 0 } }));
+    tp.forEach(k => tipeEs[k] = pk.paket.filter(p => Number(p.tipe) === k && p.jenis === 'ESSAY').map(p => String(p.bank_id)));
+  } else {
+    mcqRows = d.mcq.filter(act).map((q, i) => ({ no: i + 1, q }));
+    let m = null; try { m = JSON.parse(String(c.essay_tipe || '').trim() || 'null'); } catch (e) { }
+    const n = Math.max(1, Number(c.jumlah_tipe) || 1), ea = d.essay.filter(act).map(q => String(q.id));
+    for (let k = 1; k <= n; k++) tipeEs[k] = m && Object.keys(m).length ? (m[k] || m[String(k)] || []).map(String).filter(id => ea.includes(id)) : ea;
+  }
+  A.bbTipeEs = tipeEs;
+  const used = [...new Set(Object.values(tipeEs).flat())], esRows = d.essay.filter(q => used.includes(String(q.id))).map(q => ({ q, tipe: Object.keys(tipeEs).filter(k => tipeEs[k].includes(String(q.id))) }));
   const mm = String(c.mode_mcq || (c.mode_bobot === 'per_soal' ? 'per_soal' : 'rata')), me = String(c.mode_essay || (c.mode_bobot === 'per_soal' ? 'per_soal' : 'rata'));
   $$('input[name=bbModeM]').forEach(r => r.checked = r.value === (mm === 'per_soal' ? 'per_soal' : 'rata')); $$('input[name=bbModeE]').forEach(r => r.checked = r.value === (me === 'per_soal' ? 'per_soal' : 'rata'));
   $('#bbM').value = fmtNum(c.bobot_mcq === '' ? 60 : parseNum(c.bobot_mcq)); $('#bbE').value = fmtNum(c.bobot_essay === '' ? 40 : parseNum(c.bobot_essay));
-  const nM = rows.filter(r => r.j === 'MCQ').length, nE = rows.length - nM;
-  $('#bbNM').textContent = '(' + nM + ' soal)'; $('#bbNE').textContent = '(' + nE + ' soal)'; $('#bbBoxM').style.opacity = nM ? 1 : .5; $('#bbBoxE').style.opacity = nE ? 1 : .5;
-  if (!nE && !c.bobot_essay) $('#bbE').value = '0';
-  $('#bbTbl').innerHTML = '<tr><th class="r">No</th><th>Jenis</th><th>ID</th><th>Soal</th><th class="r" style="width:120px">Poin</th></tr>' + (rows.map(r => `<tr data-j="${r.j}" data-id="${esc(r.q.id)}"><td class="r num">${r.no}</td><td>${r.j === 'MCQ' ? 'PG' : 'Essay'}</td><td class="mono">${esc(r.q.id)}</td><td>${esc(String(r.q.soal).slice(0, 110))}</td><td class="r"><input type="text" inputmode="decimal" class="bbW" value="${esc(fmtNum(r.q.bobot === '' ? 1 : parseNum(r.q.bobot)))}" style="text-align:right"></td></tr>`).join('') || '<tr><td colspan="5" class="mut">Bank soal masih kosong.</td></tr>');
+  const nT = Object.keys(tipeEs).length, beda = new Set(Object.values(tipeEs).map(x => x.slice().sort().join())).size > 1;
+  $('#bbNM').textContent = '(' + mcqRows.length + ' soal)'; $('#bbNE').textContent = beda ? '(berbeda per tipe: ' + Object.keys(tipeEs).map(k => 'T' + k + '=' + tipeEs[k].length).join(', ') + ')' : '(' + (Object.values(tipeEs)[0] || []).length + ' soal)';
+  $('#bbBoxM').style.opacity = mcqRows.length ? 1 : .5; $('#bbBoxE').style.opacity = esRows.length ? 1 : .5; if (!esRows.length && !c.bobot_essay) $('#bbE').value = '0';
+  const poinIn = q => `<input type="text" inputmode="decimal" class="bbW" value="${esc(fmtNum(q.bobot === '' ? 1 : parseNum(q.bobot)))}" style="text-align:right">`;
+  $('#bbTbl').innerHTML = '<tr><th class="r">No</th><th>Jenis</th><th>ID</th><th>Soal</th><th>Tipe</th><th class="r" style="width:120px">Poin</th></tr>' +
+    (mcqRows.map(r => `<tr data-j="MCQ" data-id="${esc(r.q.id)}"><td class="r num">${r.no}</td><td>PG</td><td class="mono">${esc(r.q.id)}</td><td>${esc(String(r.q.soal).slice(0, 100))}</td><td class="sm mut">semua</td><td class="r">${poinIn(r.q)}</td></tr>`).join('') +
+     esRows.map(r => `<tr data-j="ESSAY" data-id="${esc(r.q.id)}" data-tipe="${r.tipe.join(',')}"><td class="r num">–</td><td>Essay</td><td class="mono">${esc(r.q.id)}</td><td>${esc(String(r.q.soal).slice(0, 100))}</td><td class="sm">${r.tipe.length === nT ? 'semua' : r.tipe.map(k => 'T' + k).join(', ')}</td><td class="r">${poinIn(r.q)}</td></tr>`).join('') || '<tr><td colspan="6" class="mut">Bank soal masih kosong.</td></tr>');
   calcBb();
 };
 function bbState() {
   const mm = ($('input[name=bbModeM]:checked') || {}).value || 'rata', me = ($('input[name=bbModeE]:checked') || {}).value || 'rata', rows = $$('#bbTbl tr[data-j]');
-  const n = { MCQ: 0, ESSAY: 0 }, sum = { MCQ: 0, ESSAY: 0 }; rows.forEach(r => { n[r.dataset.j]++; sum[r.dataset.j] += Math.max(0, parseNum($('.bbW', r).value) || 0); });
-  const sub = { MCQ: !n.MCQ ? 0 : mm === 'per_soal' ? sum.MCQ : parseNum($('#bbM').value) || 0, ESSAY: !n.ESSAY ? 0 : me === 'per_soal' ? sum.ESSAY : parseNum($('#bbE').value) || 0 };
-  return { mm, me, rows, n, sum, sub, total: Math.round((sub.MCQ + sub.ESSAY) * 100) / 100 };
+  const val = r => Math.max(0, parseNum($('.bbW', r).value) || 0), pg = rows.filter(r => r.dataset.j === 'MCQ'), es = rows.filter(r => r.dataset.j === 'ESSAY');
+  const TE = A.bbTipeEs || { 1: es.map(r => r.dataset.id) }, totM = parseNum($('#bbM').value) || 0, totE = parseNum($('#bbE').value) || 0;
+  const subM = !pg.length ? 0 : mm === 'per_soal' ? pg.reduce((a, r) => a + val(r), 0) : totM;
+  const perTipe = Object.keys(TE).map(k => { const ids = TE[k], sE = !ids.length ? 0 : me === 'per_soal' ? es.filter(r => ids.includes(r.dataset.id)).reduce((a, r) => a + val(r), 0) : totE; return { k, n: ids.length, mcq: subM, essay: Math.round(sE * 100) / 100, total: Math.round((subM + sE) * 100) / 100 }; });
+  const bad = perTipe.filter(t => Math.abs(t.total - 100) > 0.01);
+  return { mm, me, rows, pg, es, val, TE, subM, totE, perTipe, bad, ok: !bad.length && rows.length > 0 };
 }
 function calcBb() {
-  const S = bbState(), mode = { MCQ: S.mm, ESSAY: S.me };
+  const S = bbState();
   $('#bbM').disabled = S.mm === 'per_soal'; $('#bbE').disabled = S.me === 'per_soal';
-  S.rows.forEach(r => { const j = r.dataset.j, inp = $('.bbW', r); if (mode[j] === 'per_soal') { inp.disabled = false; } else { inp.disabled = true; inp.value = fmtNum(S.n[j] ? S.sub[j] / S.n[j] : 0); } });
-  $('#bbSubM').textContent = fmtNum(S.sub.MCQ); $('#bbSubE').textContent = fmtNum(S.sub.ESSAY);
-  const ok = Math.abs(S.total - 100) < 0.01; $('#bbTot').textContent = fmtNum(S.total) + ' / 100';
-  $('#bbTotNote').innerHTML = ok ? '<span style="color:var(--green);font-weight:700">✓ total sudah 100</span>' : `<span style="color:var(--red);font-weight:700">${S.total > 100 ? 'kelebihan ' + fmtNum(S.total - 100) : 'kurang ' + fmtNum(100 - S.total)}</span>`;
-  $('#bbTotBox').style.borderColor = ok ? 'var(--green)' : 'var(--red)'; $('#bBbSave').disabled = !ok || !S.rows.length;
-  $('#bbHint').textContent = ok ? '' : 'Simpan aktif setelah total tepat 100.';
+  if (S.mm !== 'per_soal') S.pg.forEach(r => { const i = $('.bbW', r); i.disabled = true; i.value = fmtNum(S.pg.length ? S.subM / S.pg.length : 0); }); else S.pg.forEach(r => $('.bbW', r).disabled = false);
+  S.es.forEach(r => { const i = $('.bbW', r); if (S.me === 'per_soal') i.disabled = false; else { i.disabled = true; const k = (r.dataset.tipe || '').split(',')[0], n = (S.TE[k] || []).length || 1; i.value = fmtNum(S.totE / n); } });
+  const essVals = [...new Set(S.perTipe.map(t => t.essay))];
+  $('#bbSubM').textContent = fmtNum(S.subM); $('#bbSubE').textContent = essVals.length > 1 ? S.perTipe.map(t => 'T' + t.k + ' ' + fmtNum(t.essay)).join(' • ') : fmtNum(essVals[0] || 0);
+  const show = S.bad[0] || S.perTipe[0] || { total: 0 };
+  $('#bbTot').textContent = (S.bad.length && S.perTipe.length > 1 ? 'T' + show.k + ': ' : '') + fmtNum(show.total) + ' / 100';
+  $('#bbTotNote').innerHTML = S.ok ? `<span style="color:var(--green);font-weight:700">✓ total ${S.perTipe.length > 1 ? 'tiap tipe ' : ''}sudah 100</span>` :
+    S.bad.map(t => `<span style="color:var(--red);font-weight:700;display:block">${S.perTipe.length > 1 ? 'Tipe ' + t.k + ': ' : ''}${t.total > 100 ? 'kelebihan ' + fmtNum(t.total - 100) : 'kurang ' + fmtNum(100 - t.total)}</span>`).join('');
+  $('#bbTotBox').style.borderColor = S.ok ? 'var(--green)' : 'var(--red)'; $('#bBbSave').disabled = !S.ok;
+  $('#bbHint').textContent = S.ok ? '' : 'Simpan aktif setelah total ' + (S.perTipe.length > 1 ? 'setiap tipe ' : '') + 'tepat 100.';
 }
 $('#t-bb').addEventListener('input', calcBb); $('#t-bb').addEventListener('change', calcBb);
 $('#bBbFix').onclick = () => {
-  const S = bbState();
-  if (S.n.ESSAY && S.me === 'rata') $('#bbE').value = fmtNum(Math.max(0, 100 - S.sub.MCQ));
-  else if (S.n.MCQ && S.mm === 'rata') $('#bbM').value = fmtNum(Math.max(0, 100 - S.sub.ESSAY));
-  else if (!S.n.ESSAY && S.n.MCQ) { $('#bbM').value = '100'; $$('input[name=bbModeM]').forEach(r => r.checked = r.value === 'rata'); }
-  else if (!S.n.MCQ && S.n.ESSAY) { $('#bbE').value = '100'; $$('input[name=bbModeE]').forEach(r => r.checked = r.value === 'rata'); }
-  else { // keduanya per soal: skalakan essay agar pas
-    const need = 100 - S.sub.MCQ, rows = S.rows.filter(r => r.dataset.j === 'ESSAY');
-    if (need > 0 && S.sum.ESSAY > 0) { let acc = 0; rows.forEach((r, i) => { const v = i === rows.length - 1 ? Math.round((need - acc) * 100) / 100 : Math.round((parseNum($('.bbW', r).value) || 0) / S.sum.ESSAY * need * 100) / 100; acc += v; $('.bbW', r).value = fmtNum(v); }); }
-    else return toast('Kurangi poin pilihan ganda dulu: subtotal PG sudah ' + fmtNum(S.sub.MCQ) + '.', 'warn');
+  const S = bbState(), maxE = Math.max(0, ...S.perTipe.map(t => t.essay)), minE = Math.min(...S.perTipe.map(t => t.essay));
+  if (!S.es.length && S.pg.length) { $('#bbM').value = '100'; $$('input[name=bbModeM]').forEach(r => r.checked = r.value === 'rata'); }
+  else if (!S.pg.length && S.es.length && S.me === 'rata') $('#bbE').value = '100';
+  else if (S.me === 'rata') $('#bbE').value = fmtNum(Math.max(0, 100 - S.subM));
+  else {
+    // poin essay per soal: skalakan essay tiap tipe agar PG + essay = 100 (hanya bila tiap essay dipakai satu tipe)
+    const need = 100 - S.subM, multi = S.es.some(r => (r.dataset.tipe || '').split(',').length > 1);
+    if (need <= 0) return toast('Kurangi poin pilihan ganda dulu: subtotal PG sudah ' + fmtNum(S.subM) + '.', 'warn');
+    if (multi && S.perTipe.length > 1 && maxE !== minE) return toast('Ada soal essay yang dipakai di beberapa tipe dengan total berbeda — atur poinnya manual, atau pilih "Sama rata" untuk essay.', 'warn');
+    S.perTipe.forEach(t => { const rs = S.es.filter(r => (S.TE[t.k] || []).includes(r.dataset.id)), sum = rs.reduce((a, r) => a + S.val(r), 0) || rs.length; let acc = 0;
+      rs.forEach((r, i) => { const v = i === rs.length - 1 ? Math.round((need - acc) * 100) / 100 : Math.round(((S.val(r) || 1) / sum) * need * 100) / 100; acc += v; $('.bbW', r).value = fmtNum(v); }); });
   }
   calcBb();
 };
 $('#bBbSave').onclick = () => run('#bBbSave', async () => {
   const S = bbState(), per = {}; S.rows.forEach(r => per[r.dataset.j + ':' + r.dataset.id] = parseNum($('.bbW', r).value) || 0);
-  const r = await call('adminSaveBobot', A.cid, { mode_mcq: S.mm, mode_essay: S.me, bobot_mcq: S.sub.MCQ, bobot_essay: S.sub.ESSAY, per });
-  A.pk = null; A.res = null; await reloadCourses(); toast(`Poin tersimpan: PG ${fmtNum(r.mcq)} + essay ${fmtNum(r.essay)} = ${fmtNum(r.total)}. Klik "Koreksi semua" bila nilai sudah pernah dihitung.`);
+  const r = await call('adminSaveBobot', A.cid, { mode_mcq: S.mm, mode_essay: S.me, bobot_mcq: S.subM, bobot_essay: S.totE, per });
+  A.pk = null; A.res = null; await reloadCourses();
+  toast('Poin tersimpan: ' + (r.perTipe.length > 1 && new Set(r.perTipe.map(t => t.essay)).size > 1 ? r.perTipe.map(t => `tipe ${t.tipe} = PG ${fmtNum(t.mcq)} + essay ${fmtNum(t.essay)}`).join('; ') : `PG ${fmtNum(r.mcq)} + essay ${fmtNum(r.essay)} = ${fmtNum(r.total)}`) + '. Klik "Koreksi semua" bila nilai sudah pernah dihitung.');
 });
 
 /* ---------- 6. formula ---------- */
@@ -714,10 +765,12 @@ $('#bPdfKunci').onclick = () => run('#bPdfKunci', async () => {
   const tp = pk.total || {};
   const doc = await pdfDoc('Soal & Kunci Jawaban per Tipe', `${c.nama} • ${T.length} tipe • ${fmtNum(c.durasi_menit)} menit • total poin ${fmtNum(tp.total)} (PG ${fmtNum(tp.mcq)} + essay ${fmtNum(tp.essay)})`);
   para(doc, 'Ringkasan kunci per tipe', { bold: true, size: 11.5, color: NAVY, gap: 1 });
-  tbl(doc, { head: [['No', ...T.map(k => 'Tipe ' + k), 'Poin']], body: nos.map(no => { const p0 = at(T[0], no); return [no, ...T.map(k => { const p = at(k, no); return p.jenis === 'MCQ' ? (p.kunci || '?') : 'Essay ' + p.bank_id; }), fmtNum(pk.bobot[T[0] + ':' + no])]; }),
+  const maxNo = Math.max(...pk.paket.map(p => Number(p.no))), allNos = Array.from({ length: maxNo }, (_, i) => i + 1);
+  tbl(doc, { head: [['No', ...T.map(k => 'Tipe ' + k), 'Poin']], body: allNos.map(no => { const ps = T.map(k => at(k, no)), pv = [...new Set(ps.map((p, i) => p ? fmtNum(pk.bobot[T[i] + ':' + no]) : null).filter(Boolean))];
+      return [no, ...ps.map((p, i) => !p ? '–' : p.jenis === 'MCQ' ? (p.kunci || '?') : 'Essay ' + p.bank_id + (pv.length > 1 ? ' (' + fmtNum(pk.bobot[T[i] + ':' + no]) + ')' : '')), pv.length > 1 ? 'beda' : pv[0]]; }),
     styles: { font: doc.FN, fontSize: 9, halign: 'center', cellPadding: 1.2 }, columnStyles: { 0: { cellWidth: 12 } }, didParseCell: d => { if (d.section === 'body' && d.column.index > 0 && d.column.index <= T.length && /^[A-E]$/.test(d.cell.raw)) d.cell.styles.fontStyle = 'bold'; } });
   doc.Y = doc.lastAutoTable.finalY + 4;
-  para(doc, 'Kunci "?" = belum ada kunci di bank soal. Poin sama untuk semua tipe karena melekat pada soal.', { size: 8.5, color: [110, 110, 110] });
+  para(doc, 'Kunci "?" = belum ada kunci di bank soal. "–" = nomor ini tidak ada di tipe tersebut (jumlah essay berbeda per tipe). Poin melekat pada soal; bila essay berbeda per tipe, poin essay tertulis di dalam sel.', { size: 8.5, color: [110, 110, 110] });
   T.forEach(k => {
     doc.addPage(); doc.Y = 18; para(doc, `TIPE ${k}`, { bold: true, size: 14, color: NAVY, gap: 0.5 }); para(doc, c.nama, { size: 9.5, color: [90, 90, 90], gap: 3 });
     pk.paket.filter(p => Number(p.tipe) === k).sort((a, b) => a.no - b.no).forEach(p => {
