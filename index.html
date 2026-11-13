@@ -250,8 +250,21 @@ function viol(type, detail, quiet) {
   api('logViolation', X.token, type, detail || '').then(r => { if (r && r.count !== undefined) { X.viol = r.count; renderNav(); if (r.locked) { X.status = 'TERKUNCI'; applyStatus(); renderQ(); } } }).catch(() => { });
   if (!quiet && X.status === 'AKTIF') shade('Pelanggaran tercatat', ({ PINDAH_TAB: 'Anda meninggalkan halaman ujian.', KELUAR_JENDELA: 'Jendela ujian kehilangan fokus (membuka aplikasi/jendela lain).', SCREENSHOT: 'Terdeteksi upaya tangkapan layar.', SALIN: 'Menyalin isi ujian tidak diperbolehkan.', TEMPEL: 'Menempel teks tidak diperbolehkan — ketik jawaban Anda sendiri.', CETAK: 'Mencetak halaman tidak diperbolehkan.' }[type] || '') + ' Kejadian ini dilaporkan ke dosen.', true);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) { X.lastHide = Date.now(); viol('PINDAH_TAB', 'Tab/aplikasi lain dibuka'); } else if (on()) doSync(); });
-window.addEventListener('blur', () => setTimeout(() => { if (!document.hidden && !document.hasFocus() && Date.now() - X.lastHide > 1500) viol('KELUAR_JENDELA', 'Fokus pindah dari jendela ujian'); }, 400));
+/* lama meninggalkan halaman: dicatat saat kembali */
+let away = null;
+const durTxt = s => s < 60 ? s + ' detik' : Math.floor(s / 60) + ' menit ' + (s % 60) + ' detik';
+function back() {
+  if (!away) return; const a = away; away = null; if (!on()) return;
+  const s = Math.max(0, Math.round((Date.now() - a.t) / 1000));
+  api('logReturn', X.token, a.type, s).catch(() => { });
+  if ($('#shade').classList.contains('on') && $('#shade').dataset.kind === 'warn') $('#shText').textContent = 'Anda meninggalkan halaman ujian selama ' + durTxt(s) + '. Kejadian dan lamanya dilaporkan ke dosen.';
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { X.lastHide = Date.now(); if (on() && !away) away = { t: Date.now(), type: 'PINDAH_TAB' }; viol('PINDAH_TAB', 'Tab/aplikasi lain dibuka'); }
+  else if (on()) { back(); doSync(); }
+});
+window.addEventListener('blur', () => setTimeout(() => { if (!document.hidden && !document.hasFocus() && Date.now() - X.lastHide > 1500) { if (on() && !away) away = { t: Date.now(), type: 'KELUAR_JENDELA' }; viol('KELUAR_JENDELA', 'Fokus pindah dari jendela ujian'); } }, 400));
+window.addEventListener('focus', () => { if (!document.hidden) back(); });
 ['copy', 'cut'].forEach(ev => document.addEventListener(ev, e => { if (on()) { e.preventDefault(); viol('SALIN', ev); } }));
 document.addEventListener('paste', e => { if (on()) { e.preventDefault(); viol('TEMPEL', ((e.clipboardData && e.clipboardData.getData('text')) || '').length + ' karakter'); } });
 document.addEventListener('drop', e => { if (on()) e.preventDefault(); });
